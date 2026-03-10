@@ -1,52 +1,57 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 
-# 1. Configuración de la página
-st.set_page_config(page_title="FarmPilot - Gestión Agro", page_icon="🚜")
-st.title("🚜 FarmPilot Pro")
-st.subheader("Asistente Inteligente de Gestión Agrícola")
+# 1. Configuración de la interfaz (Ancha, como en la PC)
+st.set_page_config(page_title="FarmPilot Pro - Gestión", page_icon="🚜", layout="wide")
 
-# 2. Configuración de Seguridad (Secrets)
+# 2. Configuración de Seguridad (Secrets de Streamlit)
 api_key = st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-if api_key:
-    genai.configure(api_key=api_key)
+# 3. TU SYSTEM PROMPT (Acá es donde vive la inteligencia de FarmPilot)
+# Podés pegar acá mismo el texto largo que tenías en AI Studio
+SYSTEM_PROMPT = """
+Actuá como un experto en administración de agronegocios y logística. 
+Tu objetivo es ayudar con FarmPilot en la gestión de stock, 
+hacienda y cálculos agrícolas para la zona de Pehuajó.
+"""
+
+st.title("🚜 FarmPilot Pro")
+st.subheader("Interfaz de Gestión Agrícola Inteligente")
+st.markdown("---")
+
+# 4. BARRA LATERAL: Los campos que antes completabas en AI Studio
+with st.sidebar:
+    st.header("Panel de Datos")
+    st.write("Completá la información para procesar:")
     
-    # DEFINIMOS EL MODELO (Esto faltaba en tu versión)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Estos son los "Inputs" de tu app. Podés cambiarlos por lo que necesites.
+    input_lote = st.text_input("Lote o Establecimiento", placeholder="Ej: La Posta - Lote 4")
+    input_categoria = st.selectbox("Categoría", ["Hacienda", "Granos", "Maquinaria", "Logística"])
+    input_novedad = st.text_area("Descripción de la novedad o consulta:", height=200, 
+                                placeholder="Ej: Se realizó pesaje de 50 novillos...")
 
-    # 3. TU LÓGICA DE NEGOCIO (Pegá acá todo lo de AI Studio)
-    SYSTEM_PROMPT = """
-    Actuá como un experto en administración de agronegocios y logística. 
-    Tu objetivo es ayudar con FarmPilot en: 
-    - Gestión de stock de granos y hacienda.
-    - Control de logística y cartas de porte.
-    - Cálculos de raciones y suplementación.
-    (Completá acá con el resto de tu lógica de Pehuajó y agro...)
-    """
+    # El botón "RUN"
+    ejecutar = st.button("🚀 Procesar con FarmPilot")
 
-    # Inicializar el historial del chat
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+# 5. ÁREA PRINCIPAL: Donde aparece el resultado
+if ejecutar:
+    if input_lote and input_novedad:
+        with st.spinner("FarmPilot está analizando los datos..."):
+            # Armamos el prompt final uniendo el sistema con los datos que escribió el usuario
+            prompt_final = f"{SYSTEM_PROMPT}\n\nESTABLECIMIENTO: {input_lote}\nCATEGORÍA: {input_categoria}\nDATOS: {input_novedad}"
+            
+            # Pedimos la respuesta a Gemini
+            response = model.generate_content(prompt_final)
+            
+            # Mostramos el resultado de forma elegante
+            st.success("✅ Análisis Completado")
+            st.markdown("### Informe de Gestión:")
+            st.write(response.text)
+    else:
+        st.warning("⚠️ Por favor, completá los campos en la barra lateral antes de ejecutar.")
 
-    # Mostrar mensajes previos
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Entrada del usuario
-    if prompt := st.chat_input("¿En qué te ayudo con el campo hoy?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Generar respuesta de Gemini
-        with st.chat_message("assistant"):
-            # Usamos el modelo que definimos arriba
-            full_prompt = f"{SYSTEM_PROMPT}\n\nUsuario: {prompt}"
-            response = model.generate_content(full_prompt)
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-else:
-    st.error("Falta la configuración de la API Key en los Secrets de Streamlit.")
+# Pie de página
+st.markdown("---")
+st.caption("FarmPilot - Sistema desarrollado por Lorena | Lic. en Sistemas")
